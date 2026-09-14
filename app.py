@@ -29,7 +29,7 @@ PALETA_INTEGRAS = [
 # 1. CONFIGURACIÓN DE PÁGINA Y FUENTES PERSONALIZADAS (CSS)
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title='Monitoreo de Refugios | Consorcio Íntegras',
+    page_title='Monitoreo Sectorial de Refugios | Consorcio Íntegras',
     layout='wide',
     initial_sidebar_state='expanded',
 )
@@ -68,12 +68,12 @@ col_header_title, col_header_logo = st.columns([3, 1])
 
 with col_header_title:
   st.markdown(
-      "<h1 class='titulo-principal'>Tablero de Monitoreo de Refugios y"
-      " Asentamientos</h1>",
+      "<h1 class='titulo-principal'>Tablero de Monitoreo Sectorial de"
+      " Refugios</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      '**Proyecto ÍNTEGRAS** | Consorcio Humanitario de Respuesta de Emergencia'
+      '**Proyecto ÍNTEGRAS** | Análisis Sectorial (WASH, Salud, SSR, Protección)'
   )
 
 with col_header_logo:
@@ -100,7 +100,7 @@ COORDENADAS_REFUGIOS_BASE = {
 
 
 # -----------------------------------------------------------------------------
-# 2. CARGA DE DATOS DESDE KOBOTOOLBOX (SIN RESTRICCIÓN DE API KEY OBLIGATORIA)
+# 2. CARGA DE DATOS DESDE KOBOTOOLBOX
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=600)
 def cargar_datos_refugios(
@@ -112,7 +112,6 @@ def cargar_datos_refugios(
   try:
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
-      # Intento público alternativo sin token si falla
       response = requests.get(url)
       if response.status_code != 200:
         st.error(
@@ -130,7 +129,6 @@ def cargar_datos_refugios(
     return pd.DataFrame()
 
 
-# Credenciales por defecto configuradas
 DEFAULT_TOKEN = 'eb8497fd084a4fb456a5449e10987a9e341751c1'
 DEFAULT_ASSET = 'a9NZvEsLqJgF4pErR923Kd'
 
@@ -147,7 +145,7 @@ if df_raw.empty:
   st.stop()
 
 
-# Limpieza robusta de columnas adaptada al formulario de refugios
+# Funciones de limpieza de columnas
 def limpiar_columna(df, posibles_nombres, defecto='Sin especificar'):
   for col in posibles_nombres:
     if col in df.columns:
@@ -190,7 +188,7 @@ df_clean['Fecha_Monitoreo'] = limpiar_columna(
     df_clean, ['fecha_monitoreo', 'bloque_control / fecha_monitoreo', 'date'], ''
 )
 
-# Campos demográficos de población en refugios
+# Demografía
 df_clean['Total_Personas'] = limpiar_numerico(
     df_clean, ['obs_total_personas', 'total_personas', 'poblacion']
 )
@@ -204,8 +202,28 @@ df_clean['Hombres'] = limpiar_numerico(
     df_clean, ['obs_hombres', 'hombres', 'hombres_adultos']
 )
 
+# Indicadores Sectoriales WASH y Salud / Protección
+df_clean['Agua_Segura'] = limpiar_columna(
+    df_clean, ['verif_agua_segura', 'agua_segura'], 'no'
+)
+df_clean['Banos_Suficientes'] = limpiar_columna(
+    df_clean, ['chk_banos_suficientes', 'banos_suficientes'], 'no'
+)
+df_clean['Banos_Sexo'] = limpiar_columna(
+    df_clean, ['chk_banos_sexo', 'banos_sexo'], 'no'
+)
+df_clean['Acceso_Jabon'] = limpiar_columna(
+    df_clean, ['chk_acceso_jabon', 'acceso_jabon'], 'no'
+)
+df_clean['Acceso_SSR'] = limpiar_columna(
+    df_clean, ['verif_acceso_ssr', 'acceso_ssr'], 'no'
+)
+df_clean['Riesgos_VBG'] = limpiar_columna(
+    df_clean, ['obs_riesgos_vbg_wash', 'riesgos_vbg'], 'no'
+)
+
 # -----------------------------------------------------------------------------
-# 3. FILTROS LATERALES EN CASCADA + FILTRO ESPECÍFICO POR REFUGIO
+# 3. FILTROS LATERALES
 # -----------------------------------------------------------------------------
 st.sidebar.header('Sincronización y Filtros')
 
@@ -260,7 +278,7 @@ refugio_sel = st.sidebar.selectbox(
     'Refugio / Asentamiento Específico:', refugios_disp
 )
 
-# Aplicar filtros globales a los datos
+# Aplicar filtros
 df_filtered = df_clean.copy()
 if org_sel != 'TODOS':
   df_filtered = df_filtered[df_filtered['Organizacion'] == org_sel]
@@ -274,7 +292,7 @@ if refugio_sel != 'TODOS':
   df_filtered = df_filtered[df_filtered['Nombre_Refugio'] == refugio_sel]
 
 # -----------------------------------------------------------------------------
-# 4. MÉTRICAS CLAVE (TOTAL DE PERSONAS Y REFUGIOS, SEGUIDO DE HOMBRE, MUJER Y NNA)
+# 4. MÉTRICAS CLAVE POBLACIONALES
 # -----------------------------------------------------------------------------
 st.subheader('📊 Población Albergada y Desglose Demográfico')
 
@@ -284,7 +302,6 @@ total_mujeres_val = int(df_filtered['Mujeres'].sum())
 total_hombres_val = int(df_filtered['Hombres'].sum())
 total_refugios_vis = df_filtered['Nombre_Refugio'].nunique()
 
-# Fila 1: Total de personas y refugios visitados
 m1, m2 = st.columns(2)
 m1.metric(
     'Total de Personas Albergadas',
@@ -295,7 +312,6 @@ m2.metric('Refugios / Asentamientos Monitoreados', f'{total_refugios_vis:,}')
 
 st.markdown('<br>', unsafe_allow_html=True)
 
-# Fila 2: Desglose demográfico (Hombres, Mujeres, NNA)
 d1, d2, d3 = st.columns(3)
 d1.metric('Hombres Adultos', f'{total_hombres_val:,} pers.')
 d2.metric('Mujeres Adultas', f'{total_mujeres_val:,} pers.')
@@ -304,11 +320,9 @@ d3.metric('Niños, Niñas y Adolescentes (NNA)', f'{total_nna_val:,} pers.')
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 5. MAPA INTERACTIVO (UBICACIÓN GEOGRÁFICA DE LOS 12 REFUGIOS)
+# 5. MAPA INTERACTIVO
 # -----------------------------------------------------------------------------
-st.subheader(
-    '🗺️ Ubicación Geográfica de los Refugios y Asentamientos Visitados'
-)
+st.subheader('🗺️ Ubicación Geográfica de los Refugios Visitados')
 
 mapa = folium.Map(location=[10.5, -66.9], zoom_start=9, tiles='CartoDB positron')
 
@@ -320,11 +334,7 @@ if not df_filtered.empty:
     est = row['Estado']
     org = row['Organizacion']
     pob = int(row['Total_Personas'])
-    hombres = int(row['Hombres'])
-    mujeres = int(row['Mujeres'])
-    nna = int(row['NNA'])
 
-    # Búsqueda inteligente de coordenadas basadas en refugio, parroquia o municipio
     coords = [10.5, -66.9]
     for key, val in COORDENADAS_REFUGIOS_BASE.items():
       if (
@@ -336,35 +346,141 @@ if not df_filtered.empty:
         break
 
     popup_html = f"""
-        <div style='font-family: Quicksand, sans-serif; font-weight: 700; font-size: 12px; width: 230px;'>
+        <div style='font-family: Quicksand, sans-serif; font-weight: 700; font-size: 12px; width: 220px;'>
             <h4 style='font-family: Now, Montserrat, sans-serif; margin-bottom: 5px; color: {COLOR_AGUAMARINA};'>{ref}</h4>
             <b>Estado:</b> {est}<br>
             <b>Municipio / Parroquia:</b> {mun} / {par}<br>
+            <b>Población Albergada:</b> {pob:,} pers.<br>
             <b>Socio:</b> {org}<br>
-            <hr style='margin: 4px 0;'>
-            <b>Total Personas:</b> {pob:,}<br>
-            - Hombres: {hombres:,}<br>
-            - Mujeres: {mujeres:,}<br>
-            - NNA: {nna:,}<br>
         </div>
         """
 
     folium.CircleMarker(
         location=coords,
         radius=min(max(pob / 25, 8), 22),
-        popup=folium.Popup(popup_html, max_width=260),
+        popup=folium.Popup(popup_html, max_width=250),
         color=COLOR_AGUAMARINA,
         fill=True,
         fill_color=COLOR_AGUAMARINA,
         fill_opacity=0.85,
     ).add_to(mapa)
 
-st_folium(mapa, width='stretch', height=450)
+st_folium(mapa, width='stretch', height=420)
 
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 6. TABLA Y DESCARGA DE LEVANTAMIENTOS
+# 6. ANÁLISIS SECTORIAL (WASH, SALUD, SALUD SEXUAL Y REPRODUCTIVA, PROTECCIÓN)
+# -----------------------------------------------------------------------------
+st.subheader('🔍 Análisis Sectorial de Necesidades en Refugios')
+
+tab_wash, tab_salud, tab_ssr, tab_prot = st.tabs([
+    '💧 WASH (Agua y Saneamiento)',
+    '🩺 Salud Primaria',
+    '🌸 Salud Sexual y Reproductiva (SSR)',
+    '🛡️ Protección y VBG',
+])
+
+with tab_wash:
+  st.markdown('### Indicadores del Sector WASH')
+  if not df_filtered.empty:
+    col_w1, col_w2 = st.columns(2)
+
+    with col_w1:
+      fig_agua = px.pie(
+          df_filtered,
+          names='Agua_Segura',
+          title='Disponibilidad de Agua Segura',
+          color_discrete_sequence=[
+              COLOR_AGUAMARINA,
+              COLOR_ROSADO_AAP,
+              COLOR_AMARILLO_MOSTAZA,
+          ],
+      )
+      fig_agua.update_traces(textinfo='label+value+percent')
+      st.plotly_chart(fig_agua, width='stretch')
+
+    with col_w2:
+      fig_banos = px.pie(
+          df_filtered,
+          names='Banos_Sexo',
+          title='Baños Separados Físicamente por Sexo',
+          color_discrete_sequence=['#08327D', COLOR_ROSADO_AAP],
+      )
+      fig_banos.update_traces(textinfo='label+value+percent')
+      st.plotly_chart(fig_banos, width='stretch')
+  else:
+    st.info('No hay datos disponibles para WASH.')
+
+with tab_salud:
+  st.markdown('### Cobertura y Atención en Salud')
+  if not df_filtered.empty:
+    col_s1, col_s2 = st.columns(2)
+
+    with col_s1:
+      fig_jabon = px.pie(
+          df_filtered,
+          names='Acceso_Jabon',
+          title='Acceso Continuo a Jabón e Higiene',
+          color_discrete_sequence=[COLOR_VERDE_ABIERTO, COLOR_ROSADO_AAP],
+      )
+      fig_jabon.update_traces(textinfo='label+value+percent')
+      st.plotly_chart(fig_jabon, width='stretch')
+
+    with col_s2:
+      # Distribución de refugios por municipio y población afectada en salud
+      df_mun_pob = (
+          df_filtered.groupby('Municipio')['Total_Personas']
+          .sum()
+          .reset_index()
+      )
+      fig_mun = px.bar(
+          df_mun_pob,
+          x='Municipio',
+          y='Total_Personas',
+          title='Población Afectada por Municipio',
+          color_discrete_sequence=['#0072CE'],
+      )
+      st.plotly_chart(fig_mun, width='stretch')
+  else:
+    st.info('No hay datos disponibles para Salud.')
+
+with tab_ssr:
+  st.markdown('### Salud Sexual y Reproductiva (SSR)')
+  if not df_filtered.empty:
+    fig_ssr = px.histogram(
+        df_filtered,
+        x='Acceso_SSR',
+        color='Estado',
+        title='Acceso a Servicios Básicos de SSR u Obstetricia',
+        color_discrete_sequence=PALETA_INTEGRAS,
+    )
+    st.plotly_chart(fig_ssr, width='stretch')
+  else:
+    st.info('No hay datos disponibles para SSR.')
+
+with tab_prot:
+  st.markdown('### Protección y Alertas de Riesgos / VBG')
+  if not df_filtered.empty:
+    fig_vbg = px.pie(
+        df_filtered,
+        names='Riesgos_VBG',
+        title='Identificación de Riesgos de Protección / VBG',
+        color_discrete_sequence=[
+            COLOR_ROSADO_AAP,
+            COLOR_AGUAMARINA,
+            COLOR_AMARILLO_MOSTAZA,
+        ],
+    )
+    fig_vbg.update_traces(textinfo='label+value+percent')
+    st.plotly_chart(fig_vbg, width='stretch')
+  else:
+    st.info('No hay datos disponibles para Protección.')
+
+st.markdown('---')
+
+# -----------------------------------------------------------------------------
+# 7. TABLA Y DESCARGA
 # -----------------------------------------------------------------------------
 st.subheader('📋 Detalle de Levantamientos y Población por Refugio')
 
