@@ -230,7 +230,7 @@ df_clean['Brechas_WASH'] = limpiar_columna(
 )
 
 # -----------------------------------------------------------------------------
-# 3. FILTROS LATERALES
+# 3. FILTROS LATERALES EN CASCADA ARMONIZADA
 # -----------------------------------------------------------------------------
 st.sidebar.header('Sincronización y Filtros')
 
@@ -239,7 +239,7 @@ if st.sidebar.button('🔄 Actualizar Datos', width='stretch'):
   st.rerun()
 
 st.sidebar.markdown('---')
-st.sidebar.header('Filtros de Priorización')
+st.sidebar.header('Filtros de Priorización (Cascada)')
 
 orgs_disp = ['TODOS'] + sorted(
     [x for x in df_clean['Organizacion'].unique() if x != 'Sin especificar']
@@ -281,9 +281,7 @@ df_f3 = (
 refugios_disp = ['TODOS'] + sorted(
     [x for x in df_f3['Nombre_Refugio'].unique() if x != 'Refugio General']
 )
-refugio_sel = st.sidebar.selectbox(
-    'Refugio / Asentamiento Específico:', refugios_disp
-)
+refugio_sel = st.sidebar.selectbox('Refugio Específico:', refugios_disp)
 
 # Aplicar filtros
 df_filtered = df_clean.copy()
@@ -379,7 +377,7 @@ st_folium(mapa, width='stretch', height=420)
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 6. REPORTE Y DIAGNÓSTICO WASH (ESTILO FICHA TÉCNICA POR ALBERGUE)
+# 6. REPORTE Y DIAGNÓSTICO WASH (ESTILO FICHA TÉCNICA SIN SÍMBOLOS EXTRAÑOS)
 # -----------------------------------------------------------------------------
 st.subheader('💧 Diagnóstico Sectorial WASH: Fichas Técnicas por Albergue')
 st.markdown(
@@ -399,7 +397,7 @@ if not df_filtered.empty:
     m = int(row['Mujeres'])
     nna = int(row['NNA'])
 
-    with st.expander(f'📍 Refugio: {ref_nombre} ({mun} / {est})'):
+    with st.expander(f'Refugio: {ref_nombre} ({mun} / {est})'):
       col_f1, col_f2 = st.columns([1, 1.5])
 
       with col_f1:
@@ -412,7 +410,7 @@ if not df_filtered.empty:
         )
 
       with col_f2:
-        st.markdown('#### 🚰 Sector ASH (Agua, Saneamiento e Higiene):')
+        st.markdown('#### Sector ASH (Agua, Saneamiento e Higiene):')
         st.markdown(
             f'- **Disponibilidad de Agua Segura:** {row["Agua_Segura"]}'
         )
@@ -425,7 +423,7 @@ if not df_filtered.empty:
         )
         st.markdown(
             f'- **Baños Suficientes / Separados por Sexo:**'
-            f' {row["Banos_Suficientes"]} / {row["Banos_Sexo"]}'
+            f' {row["Banos_Suficientes']} / {row["Banos_Sexo"]}'
         )
         st.markdown(
             f'- **Iluminación en Baños:** {row["Iluminacion_Banos"]}'
@@ -437,12 +435,12 @@ if not df_filtered.empty:
   st.markdown('---')
 
   # -----------------------------------------------------------------------------
-  # 7. FORMULARIO INTERACTIVO / MÓDULO DE ANÁLISIS DE ACCESO Y TRATAMIENTO DE AGUA
+  # 7. MÓDULO DE ANÁLISIS: ACCESO AL AGUA VS TRATAMIENTO (COMPARATIVA DE BARRAS)
   # -----------------------------------------------------------------------------
-  st.subheader('⚙️ Módulo de Análisis: Acceso al Agua y Tipo de Tratamiento')
+  st.subheader('⚙️ Módulo de Análisis: Acceso al Agua vs Tratamiento')
   st.markdown(
-      'Gráficos consolidados del consorcio para priorización de intervenciones'
-      ' WASH.'
+      'Comparativa de albergues con acceso a agua segura frente a los que'
+      ' realizan tratamiento del recurso.'
   )
 
   col_w1, col_w2 = st.columns(2)
@@ -459,15 +457,38 @@ if not df_filtered.empty:
     st.plotly_chart(fig_agua, width='stretch')
 
   with col_w2:
-    fig_trat = px.bar(
-        df_filtered['Tipo_Tratamiento'].value_counts().reset_index(),
-        x='index',
-        y='Tipo_Tratamiento',
-        title='Tipos de Tratamiento de Agua Reportados',
-        labels={'index': 'Tipo de Tratamiento', 'Tipo_Tratamiento': 'Cantidad'},
-        color_discrete_sequence=['#08327D'],
+    # Gráfico de barras comparativo: Albergues con Acceso a Agua vs Albergues con Tratamiento
+    total_albergues = len(df_filtered)
+    con_agua_segura = (
+        df_filtered['Agua_Segura'].astype(str).str.lower().isin(['si', 'sí', '1'])
+    ).sum()
+    con_tratamiento = (
+        df_filtered['Tratamiento_Agua']
+        .astype(str)
+        .str.lower()
+        .isin(['si', 'sí', '1'])
+    ).sum()
+
+    df_comparativo = pd.DataFrame({
+        'Indicador WASH': [
+            'Con Acceso a Agua Segura',
+            'Realizan Tratamiento de Agua',
+        ],
+        'Cantidad de Albergues': [con_agua_segura, con_tratamiento],
+    })
+
+    fig_comp_wash = px.bar(
+        df_comparativo,
+        x='Indicador WASH',
+        y='Cantidad de Albergues',
+        text='Cantidad de Albergues',
+        title='Cantidad de Albergues: Acceso vs Tratamiento',
+        color='Indicador WASH',
+        color_discrete_sequence=[COLOR_AGUAMARINA, '#08327D'],
     )
-    st.plotly_chart(fig_trat, width='stretch')
+    fig_comp_wash.update_traces(textposition='outside')
+    fig_comp_wash.update_layout(showlegend=False)
+    st.plotly_chart(fig_comp_wash, width='stretch')
 
 else:
   st.info('No hay registros disponibles para los filtros seleccionados.')
