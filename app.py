@@ -216,9 +216,6 @@ df_clean['Banos_Suficientes'] = limpiar_columna(
 df_clean['Banos_Sexo'] = limpiar_columna(
     df_clean, ['chk_banos_sexo'], 'No'
 )
-df_clean['Iluminacion_Banos'] = limpiar_columna(
-    df_clean, ['chk_iluminacion_banos'], 'No'
-)
 df_clean['Acceso_Jabon'] = limpiar_columna(
     df_clean, ['chk_acceso_jabon'], 'No'
 )
@@ -337,7 +334,11 @@ st.markdown('<br>', unsafe_allow_html=True)
 d1, d2, d3 = st.columns(3)
 d1.metric('Hombres Adultos', f'{total_hombres_val:,} pers.')
 d2.metric('Mujeres Adultas', f'{total_mujeres_val:,} pers.')
-d3.metric('Niños, Niñas y Adolescentes (NNA)', f'{total_nna_val:,} pers.', delta_color="off")
+d3.metric(
+    'Niños, Niñas y Adolescentes (NNA)',
+    f'{total_nna_val:,} pers.',
+    delta_color='off',
+)
 
 st.markdown('---')
 
@@ -401,8 +402,7 @@ st.subheader('📑 Diagnóstico Sectorial por Albergue')
 tab_wash, tab_prot = st.tabs([
     '💧 Módulo WASH (ASH)',
     '🛡️ Módulo Protección y VBG',
-]
-)
+])
 
 # --- PESTAÑA WASH ---
 with tab_wash:
@@ -435,6 +435,15 @@ with tab_wash:
       m = int(row['Mujeres'])
       nna = int(row['NNA'])
 
+      agua_seg = row['Agua_Segura']
+      agua_suf = row['Agua_Suficiente']
+      trat_agua = row['Tratamiento_Agua']
+      tipo_trat = row['Tipo_Tratamiento']
+      banos_suf = row['Banos_Suficientes']
+      banos_sex = row['Banos_Sexo']
+      acceso_jabon = row['Acceso_Jabon']
+      brechas_w = row['Brechas_WASH']
+
       with st.expander(f'Refugio: {ref_nombre}  |  Ubicación: {mun} - {est}'):
         col_w1, col_w2 = st.columns([1, 1.5])
         with col_w1:
@@ -446,22 +455,17 @@ with tab_wash:
           )
         with col_w2:
           st.markdown('**Condiciones WASH:**')
+          st.markdown(f'- **Disponibilidad de Agua Segura:** {agua_seg}')
+          st.markdown(f'- **Cantidad Suficiente de Agua:** {agua_suf}')
           st.markdown(
-              f'- **Disponibilidad de Agua Segura:** {row["Agua_Segura"]}'
+              f'- **Tratamiento Aplicado:** {trat_agua} (Tipo: {tipo_trat})'
           )
           st.markdown(
-              f'- **Cantidad Suficiente de Agua:** {row["Agua_Suficiente"]}'
+              f'- **Baños Suficientes / Separados por Sexo:** {banos_suf} /'
+              f' {banos_sex}'
           )
-          st.markdown(
-              f'- **Tratamiento Aplicado:** {row["Tratamiento_Agua"]} (Tipo:'
-              f' {row["Tipo_Tratamiento"]})'
-          )
-          st.markdown(
-              f'- **Baños Suficientes / Separados por Sexo:**'
-              f' {row["Banos_Suficientes']} / {row["Banos_Sexo"]}'
-          )
-          st.markdown(f'- **Acceso a Jabón:** {row["Acceso_Jabon"]}')
-          st.markdown(f'- **Brechas Críticas:** {row["Brechas_WASH"]}')
+          st.markdown(f'- **Acceso a Jabón:** {acceso_jabon}')
+          st.markdown(f'- **Brechas Críticas:** {brechas_w}')
 
     st.markdown('---')
     st.markdown('### Análisis Gráfico WASH')
@@ -547,6 +551,13 @@ with tab_prot:
       m = int(row['Mujeres'])
       nna = int(row['NNA'])
 
+      riesgos_v = row['Riesgos_VBG']
+      ori_legal = row['Orientacion_Legal']
+      prev_vbg = row['Prevencion_VBG']
+      nna_sep = row['NNA_Separados']
+      pres_seg = row['Presencia_Seguridad']
+      ap_psico = row['Apoyo_Psicosocial']
+
       with st.expander(f'Refugio: {ref_nombre}  |  Ubicación: {mun} - {est}'):
         col_p1, col_p2 = st.columns([1, 1.5])
         with col_p1:
@@ -558,21 +569,14 @@ with tab_prot:
           )
         with col_p2:
           st.markdown('**Condiciones de Protección y VBG:**')
-          st.markdown(f'- **Riesgos de Protección y VBG:** {row["Riesgos_VBG"]}')
+          st.markdown(f'- **Riesgos de Protección y VBG:** {riesgos_v}')
+          st.markdown(f'- **Orientación Legal (Operatividad):** {ori_legal}')
+          st.markdown(f'- **Prevención VBG (Institucional):** {prev_vbg}')
+          st.markdown(f'- **NNA No Acompañados / Separados:** {nna_sep}')
           st.markdown(
-              f'- **Orientación Legal (Operatividad):** {row["Orientacion_Legal"]}'
+              f'- **Presencia de Seguridad / Cuerpos Policiales:** {pres_seg}'
           )
-          st.markdown(
-              f'- **Prevención VBG (Institucional):** {row["Prevencion_VBG"]}'
-          )
-          st.markdown(
-              f'- **NNA No Acompañados / Separados:** {row["NNA_Separados"]}'
-          )
-          st.markdown(
-              f'- **Presencia de Seguridad / Cuerpos Policiales:**'
-              f' {row["Presencia_Seguridad"]}'
-          )
-          st.markdown(f'- **Apoyo Psicosocial (PAP):** {row["Apoyo_Psicosocial"]}')
+          st.markdown(f'- **Apoyo Psicosocial (PAP):** {ap_psico}')
 
     st.markdown('---')
     st.markdown('### Análisis Gráfico Protección y VBG')
