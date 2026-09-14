@@ -1,5 +1,7 @@
 streamlit
 pandas
 requests
-pydeck
-matplotlib
+folium
+streamlit-folium
+plotly
+openpyxl
