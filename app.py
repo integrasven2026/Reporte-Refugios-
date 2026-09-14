@@ -29,7 +29,7 @@ PALETA_INTEGRAS = [
 # 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title='Diagnóstico y Reporte de Protección | Consorcio Íntegras',
+    page_title='Monitoreo Sectorial Refugios | Consorcio Íntegras',
     layout='wide',
     initial_sidebar_state='expanded',
 )
@@ -68,12 +68,12 @@ col_header_title, col_header_logo = st.columns([3, 1])
 
 with col_header_title:
   st.markdown(
-      "<h1 class='titulo-principal'>Tablero de Protección y Refugios</h1>",
+      "<h1 class='titulo-principal'>Tablero de Monitoreo Sectorial de"
+      " Refugios</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      '**Proyecto ÍNTEGRAS** | Monitoreo Sectorial de Protección, VBG y'
-      ' Derivaciones'
+      '**Proyecto ÍNTEGRAS** | Módulos WASH (ASH) y Protección / VBG'
   )
 
 with col_header_logo:
@@ -197,6 +197,35 @@ df_clean['Hombres'] = limpiar_numerico(
     df_clean, ['obs_hombres', 'hombres', 'hombres_adultos']
 )
 
+# Variables WASH Específicas
+df_clean['Agua_Segura'] = limpiar_columna(
+    df_clean, ['verif_agua_segura', 'agua_segura'], 'No'
+)
+df_clean['Agua_Suficiente'] = limpiar_columna(
+    df_clean, ['verif_agua_suficiente', 'agua_suficiente'], 'No'
+)
+df_clean['Tratamiento_Agua'] = limpiar_columna(
+    df_clean, ['tratamiento_agua'], 'No'
+)
+df_clean['Tipo_Tratamiento'] = limpiar_columna(
+    df_clean, ['tipo_tratamiento'], 'No especificado'
+)
+df_clean['Banos_Suficientes'] = limpiar_columna(
+    df_clean, ['chk_banos_suficientes'], 'No'
+)
+df_clean['Banos_Sexo'] = limpiar_columna(
+    df_clean, ['chk_banos_sexo'], 'No'
+)
+df_clean['Iluminacion_Banos'] = limpiar_columna(
+    df_clean, ['chk_iluminacion_banos'], 'No'
+)
+df_clean['Acceso_Jabon'] = limpiar_columna(
+    df_clean, ['chk_acceso_jabon'], 'No'
+)
+df_clean['Brechas_WASH'] = limpiar_columna(
+    df_clean, ['brechas_no_cubiertas'], 'Sin observaciones'
+)
+
 # Variables de Protección Específicas
 df_clean['Riesgos_VBG'] = limpiar_columna(
     df_clean, ['obs_riesgos_vbg_wash', 'riesgos_vbg'], 'No'
@@ -215,9 +244,6 @@ df_clean['Presencia_Seguridad'] = limpiar_columna(
 )
 df_clean['Apoyo_Psicosocial'] = limpiar_columna(
     df_clean, ['presencia_pap'], 'No'
-)
-df_clean['Brechas_Proteccion'] = limpiar_columna(
-    df_clean, ['brechas_no_cubiertas'], 'Sin observaciones'
 )
 
 # -----------------------------------------------------------------------------
@@ -311,7 +337,7 @@ st.markdown('<br>', unsafe_allow_html=True)
 d1, d2, d3 = st.columns(3)
 d1.metric('Hombres Adultos', f'{total_hombres_val:,} pers.')
 d2.metric('Mujeres Adultas', f'{total_mujeres_val:,} pers.')
-d3.metric('Niños, Niñas y Adolescentes (NNA)', f'{total_nna_val:,} pers.')
+d3.metric('Niños, Niñas y Adolescentes (NNA)', f'{total_nna_val:,} pers.', delta_color="off")
 
 st.markdown('---')
 
@@ -330,7 +356,7 @@ if not df_filtered.empty:
     est = row['Estado']
     org = row['Organizacion']
     pob = int(row['Total_Personas'])
-    vbg = row['Riesgos_VBG']
+    agua = row['Agua_Segura']
 
     coords = [10.5, -66.9]
     for key, val in COORDENADAS_REFUGIOS_BASE.items():
@@ -348,7 +374,7 @@ if not df_filtered.empty:
             <b>Estado:</b> {est}<br>
             <b>Municipio / Parroquia:</b> {mun} / {par}<br>
             <b>Población Albergada:</b> {pob:,} pers.<br>
-            <b>Riesgos VBG:</b> {vbg}<br>
+            <b>Agua Segura:</b> {agua}<br>
             <b>Socio:</b> {org}<br>
         </div>
         """
@@ -368,127 +394,224 @@ st_folium(mapa, width='stretch', height=420)
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 6. REPORTE Y DIAGNÓSTICO DE PROTECCIÓN (FILTRO DEDICADO POR REFUGIO)
+# 6. PESTAÑAS SECTORIALES: WASH (ASH) Y PROTECCIÓN (PROT)
 # -----------------------------------------------------------------------------
-st.subheader('🛡️ Diagnóstico Sectorial de Protección y VBG')
-st.markdown(
-    'Fichas técnicas sectoriales por albergue con enfoque en protección,'
-    ' orientación legal y prevención de VBG.'
+st.subheader('📑 Diagnóstico Sectorial por Albergue')
+
+tab_wash, tab_prot = st.tabs([
+    '💧 Módulo WASH (ASH)',
+    '🛡️ Módulo Protección y VBG',
+]
 )
 
-if not df_filtered.empty:
-  # Filtro interno adicional por nombre de refugio para desglosar categorías limpiamente
-  lista_nombres_refugios = sorted(df_filtered['Nombre_Refugio'].unique())
-  refugio_ficha_sel = st.selectbox(
-      '🔍 Seleccione un Refugio Específico para ver su Ficha de Protección:',
-      options=['TODOS LOS REFUGIOS VISIBLES'] + lista_nombres_refugios,
-  )
-
-  df_fichas = (
-      df_filtered
-      if refugio_ficha_sel == 'TODOS LOS REFUGIOS VISIBLES'
-      else df_filtered[df_filtered['Nombre_Refugio'] == refugio_ficha_sel]
-  )
-
-  for _, row in df_fichas.iterrows():
-    ref_nombre = row['Nombre_Refugio']
-    est = row['Estado']
-    mun = row['Municipio']
-    par = row['Parroquia']
-    org = row['Organizacion']
-    pob = int(row['Total_Personas'])
-    h = int(row['Hombres'])
-    m = int(row['Mujeres'])
-    nna = int(row['NNA'])
-
-    riesgos_vbg = row['Riesgos_VBG']
-    orientacion_legal = row['Orientacion_Legal']
-    prevencion_vbg = row['Prevencion_VBG']
-    nna_sep = row['NNA_Separados']
-    seguridad = row['Presencia_Seguridad']
-    pap = row['Apoyo_Psicosocial']
-    brechas = row['Brechas_Proteccion']
-
-    with st.expander(f'Refugio: {ref_nombre} ({mun} / {est})'):
-      col_p1, col_p2 = st.columns([1, 1.5])
-
-      with col_p1:
-        st.markdown(f'**Ubicación:** Parroquia {par}, Municipio {mun}, {est}')
-        st.markdown(f'**Socio Responsable:** {org}')
-        st.markdown(
-            f'**Demografía:** Población estimada de {pob:,} personas.'
-            f' Distribución: {nna} NNA, {m} mujeres adultas, {h} hombres'
-            ' adultos.'
-        )
-
-      with col_p2:
-        st.markdown('#### Sector PROT (Protección y VBG):')
-        st.markdown(
-            f'- **Riesgos de Protección y VBG:** {riesgos_vbg}'
-        )
-        st.markdown(
-            f'- **Orientación Legal:** {orientacion_legal}'
-        )
-        st.markdown(
-            f'- **Prevención VBG (Institucional):** {prevencion_vbg}'
-        )
-        st.markdown(
-            f'- **NNA No Acompañados / Separados:** {nna_sep}'
-        )
-        st.markdown(
-            f'- **Presencia de Seguridad / Cuerpos Policiales:** {seguridad}'
-        )
-        st.markdown(f'- **Apoyo Psicosocial (PAP):** {pap}')
-        st.markdown(f'- **Brechas y Necesidades Críticas:** {brechas}')
-
-  st.markdown('---')
-
-  # -----------------------------------------------------------------------------
-  # 7. MÓDULO DE ANÁLISIS: GRÁFICOS SECTORIALES DE PROTECCIÓN
-  # -----------------------------------------------------------------------------
-  st.subheader('⚙️ Módulo de Análisis: Indicadores de Protección y VBG')
+# --- PESTAÑA WASH ---
+with tab_wash:
   st.markdown(
-      'Consolidado general de alertas y operatividad institucional en los'
-      ' albergues monitoreados.'
+      '### Fichas Técnicas Sector ASH (Agua, Saneamiento e Higiene)'
   )
 
-  col_p_g1, col_p_g2 = st.columns(2)
-
-  with col_p_g1:
-    fig_vbg = px.pie(
-        df_filtered,
-        names='Riesgos_VBG',
-        title='Proporción de Albergues con Riesgos de Protección / VBG',
-        hole=0.4,
-        color_discrete_sequence=[COLOR_ROSADO_AAP, COLOR_AGUAMARINA],
+  if not df_filtered.empty:
+    lista_ref_wash = sorted(df_filtered['Nombre_Refugio'].unique())
+    ref_sel_wash = st.selectbox(
+        'Seleccione un Refugio para ver su Ficha WASH:',
+        options=['TODOS LOS REFUGIOS'] + lista_ref_wash,
+        key='sel_wash',
     )
-    fig_vbg.update_traces(textinfo='label+value+percent')
-    st.plotly_chart(fig_vbg, width='stretch')
 
-  with col_p_g2:
-    fig_seg = px.bar(
-        df_filtered['Presencia_Seguridad'].value_counts().reset_index(),
-        x='index',
-        y='Presencia_Seguridad',
-        title='Presencia de Cuerpos de Seguridad / Entorno Protector',
-        labels={
-            'index': 'Condición de Seguridad',
-            'Presencia_Seguridad': 'Cantidad de Albergues',
-        },
-        color_discrete_sequence=['#08327D'],
+    df_w_view = (
+        df_filtered
+        if ref_sel_wash == 'TODOS LOS REFUGIOS'
+        else df_filtered[df_filtered['Nombre_Refugio'] == ref_sel_wash]
     )
-    fig_seg.update_traces(textposition='outside')
-    st.plotly_chart(fig_seg, width='stretch')
 
-else:
-  st.info('No hay registros disponibles para los filtros seleccionados.')
+    for _, row in df_w_view.iterrows():
+      ref_nombre = row['Nombre_Refugio']
+      est = row['Estado']
+      mun = row['Municipio']
+      par = row['Parroquia']
+      org = row['Organizacion']
+      pob = int(row['Total_Personas'])
+      h = int(row['Hombres'])
+      m = int(row['Mujeres'])
+      nna = int(row['NNA'])
+
+      with st.expander(f'Refugio: {ref_nombre}  |  Ubicación: {mun} - {est}'):
+        col_w1, col_w2 = st.columns([1, 1.5])
+        with col_w1:
+          st.markdown(f'**Parroquia:** {par}')
+          st.markdown(f'**Socio Responsable:** {org}')
+          st.markdown(
+              f'**Población:** {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres:'
+              f' {h})'
+          )
+        with col_w2:
+          st.markdown('**Condiciones WASH:**')
+          st.markdown(
+              f'- **Disponibilidad de Agua Segura:** {row["Agua_Segura"]}'
+          )
+          st.markdown(
+              f'- **Cantidad Suficiente de Agua:** {row["Agua_Suficiente"]}'
+          )
+          st.markdown(
+              f'- **Tratamiento Aplicado:** {row["Tratamiento_Agua"]} (Tipo:'
+              f' {row["Tipo_Tratamiento"]})'
+          )
+          st.markdown(
+              f'- **Baños Suficientes / Separados por Sexo:**'
+              f' {row["Banos_Suficientes']} / {row["Banos_Sexo"]}'
+          )
+          st.markdown(f'- **Acceso a Jabón:** {row["Acceso_Jabon"]}')
+          st.markdown(f'- **Brechas Críticas:** {row["Brechas_WASH"]}')
+
+    st.markdown('---')
+    st.markdown('### Análisis Gráfico WASH')
+    col_g1, col_g2 = st.columns(2)
+
+    with col_g1:
+      fig_agua = px.pie(
+          df_filtered,
+          names='Agua_Segura',
+          title='Proporción de Albergues con Acceso a Agua Segura',
+          hole=0.4,
+          color_discrete_sequence=[COLOR_AGUAMARINA, COLOR_ROSADO_AAP],
+      )
+      fig_agua.update_traces(textinfo='label+value+percent')
+      st.plotly_chart(fig_agua, width='stretch')
+
+    with col_g2:
+      con_agua_segura = (
+          df_filtered['Agua_Segura']
+          .astype(str)
+          .str.lower()
+          .isin(['si', 'sí', '1'])
+      ).sum()
+      con_tratamiento = (
+          df_filtered['Tratamiento_Agua']
+          .astype(str)
+          .str.lower()
+          .isin(['si', 'sí', '1'])
+      ).sum()
+
+      df_comp_w = pd.DataFrame({
+          'Indicador WASH': [
+              'Con Acceso a Agua Segura',
+              'Realizan Tratamiento de Agua',
+          ],
+          'Cantidad de Albergues': [con_agua_segura, con_tratamiento],
+      })
+
+      fig_bar_w = px.bar(
+          df_comp_w,
+          x='Indicador WASH',
+          y='Cantidad de Albergues',
+          text='Cantidad de Albergues',
+          title='Cantidad de Albergues: Acceso vs Tratamiento',
+          color='Indicador WASH',
+          color_discrete_sequence=[COLOR_AGUAMARINA, '#08327D'],
+      )
+      fig_bar_w.update_traces(textposition='outside')
+      fig_bar_w.update_layout(showlegend=False)
+      st.plotly_chart(fig_bar_w, width='stretch')
+  else:
+    st.info('No hay registros disponibles para el módulo WASH.')
+
+
+# --- PESTAÑA PROTECCIÓN ---
+with tab_prot:
+  st.markdown(
+      '### Fichas Técnicas Sector PROT (Protección, VBG y Derivaciones)'
+  )
+
+  if not df_filtered.empty:
+    lista_ref_prot = sorted(df_filtered['Nombre_Refugio'].unique())
+    ref_sel_prot = st.selectbox(
+        'Seleccione un Refugio para ver su Ficha de Protección:',
+        options=['TODOS LOS REFUGIOS'] + lista_ref_prot,
+        key='sel_prot',
+    )
+
+    df_p_view = (
+        df_filtered
+        if ref_sel_prot == 'TODOS LOS REFUGIOS'
+        else df_filtered[df_filtered['Nombre_Refugio'] == ref_sel_prot]
+    )
+
+    for _, row in df_p_view.iterrows():
+      ref_nombre = row['Nombre_Refugio']
+      est = row['Estado']
+      mun = row['Municipio']
+      par = row['Parroquia']
+      org = row['Organizacion']
+      pob = int(row['Total_Personas'])
+      h = int(row['Hombres'])
+      m = int(row['Mujeres'])
+      nna = int(row['NNA'])
+
+      with st.expander(f'Refugio: {ref_nombre}  |  Ubicación: {mun} - {est}'):
+        col_p1, col_p2 = st.columns([1, 1.5])
+        with col_p1:
+          st.markdown(f'**Parroquia:** {par}')
+          st.markdown(f'**Socio Responsable:** {org}')
+          st.markdown(
+              f'**Población:** {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres:'
+              f' {h})'
+          )
+        with col_p2:
+          st.markdown('**Condiciones de Protección y VBG:**')
+          st.markdown(f'- **Riesgos de Protección y VBG:** {row["Riesgos_VBG"]}')
+          st.markdown(
+              f'- **Orientación Legal (Operatividad):** {row["Orientacion_Legal"]}'
+          )
+          st.markdown(
+              f'- **Prevención VBG (Institucional):** {row["Prevencion_VBG"]}'
+          )
+          st.markdown(
+              f'- **NNA No Acompañados / Separados:** {row["NNA_Separados"]}'
+          )
+          st.markdown(
+              f'- **Presencia de Seguridad / Cuerpos Policiales:**'
+              f' {row["Presencia_Seguridad"]}'
+          )
+          st.markdown(f'- **Apoyo Psicosocial (PAP):** {row["Apoyo_Psicosocial"]}')
+
+    st.markdown('---')
+    st.markdown('### Análisis Gráfico Protección y VBG')
+    col_pg1, col_pg2 = st.columns(2)
+
+    with col_pg1:
+      fig_vbg = px.pie(
+          df_filtered,
+          names='Riesgos_VBG',
+          title='Proporción de Albergues con Riesgos de Protección / VBG',
+          hole=0.4,
+          color_discrete_sequence=[COLOR_ROSADO_AAP, COLOR_AGUAMARINA],
+      )
+      fig_vbg.update_traces(textinfo='label+value+percent')
+      st.plotly_chart(fig_vbg, width='stretch')
+
+    with col_pg2:
+      fig_seg = px.bar(
+          df_filtered['Presencia_Seguridad'].value_counts().reset_index(),
+          x='index',
+          y='Presencia_Seguridad',
+          title='Presencia de Cuerpos de Seguridad / Entorno Protector',
+          labels={
+              'index': 'Condición de Seguridad',
+              'Presencia_Seguridad': 'Cantidad de Albergues',
+          },
+          color_discrete_sequence=['#08327D'],
+      )
+      fig_seg.update_traces(textposition='outside')
+      st.plotly_chart(fig_seg, width='stretch')
+  else:
+    st.info('No hay registros disponibles para el módulo de Protección.')
 
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 8. TABLA Y DESCARGA EN EXCEL
+# 7. TABLA Y DESCARGA EN EXCEL
 # -----------------------------------------------------------------------------
-st.subheader('📋 Detalle General de Levantamientos de Protección')
+st.subheader('📋 Detalle General de Levantamientos')
 
 cols_mostrar = [
     'Fecha_Monitoreo',
@@ -498,10 +621,10 @@ cols_mostrar = [
     'Parroquia',
     'Nombre_Refugio',
     'Total_Personas',
+    'Agua_Segura',
+    'Tratamiento_Agua',
     'Riesgos_VBG',
     'Orientacion_Legal',
-    'NNA_Separados',
-    'Presencia_Seguridad',
 ]
 cols_existentes = [c for c in cols_mostrar if c in df_filtered.columns]
 
@@ -513,13 +636,13 @@ if not df_filtered.empty:
   buffer = io.BytesIO()
   with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
     df_filtered[cols_existentes].to_excel(
-        writer, index=False, sheet_name='Reporte_Proteccion'
+        writer, index=False, sheet_name='Reporte_Sectorial'
     )
   buffer.seek(0)
 
   st.download_button(
-      label='📥 Descargar Reporte de Protección en Excel',
+      label='📥 Descargar Reporte Sectorial en Excel',
       data=buffer,
-      file_name='Reporte_Proteccion_Integras.xlsx',
+      file_name='Reporte_Sectorial_Integras.xlsx',
       mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   )
