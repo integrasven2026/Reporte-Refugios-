@@ -14,7 +14,7 @@ from streamlit_folium import st_folium
 # -----------------------------------------------------------------------------
 COLOR_AGUAMARINA = '#17C3B2'  # Verde / Azul Agua Marina oficial
 COLOR_ROSADO_AAP = '#D89FE3'  # Morado / Rosado Orquídea
-COLOR_VERDE_ABIERTO = '#28A745'  # Verde para Casos / Operativo
+COLOR_VERDE_ABIERTO = '#28A745'  # Verde Operativo
 COLOR_AMARILLO_MOSTAZA = '#E5B130'  # Amarillo Mostaza
 
 PALETA_INTEGRAS = [
@@ -29,7 +29,7 @@ PALETA_INTEGRAS = [
 # 1. CONFIGURACIÓN DE PÁGINA Y FUENTES PERSONALIZADAS (CSS)
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title='Tablero de Refugios | Consorcio Íntegras',
+    page_title='Monitoreo de Refugios | Consorcio Íntegras',
     layout='wide',
     initial_sidebar_state='expanded',
 )
@@ -73,8 +73,7 @@ with col_header_title:
       unsafe_allow_html=True,
   )
   st.markdown(
-      '**Proyecto ÍNTEGRAS** | Monitoreo Sectorial de Necesidades en Refugios'
-      ' (ASH, Salud, Protección, Nutrición)'
+      '**Proyecto ÍNTEGRAS** | Consorcio Humanitario de Respuesta de Emergencia'
   )
 
 with col_header_logo:
@@ -86,7 +85,7 @@ with col_header_logo:
 
 st.markdown('---')
 
-# Coordenadas referenciales para los refugios / municipios monitoreados
+# Coordenadas referenciales por Municipio / Zona
 COORDENADAS_REFUGIOS = {
     'El Junquito': [10.4561, -67.0822],
     'Caraballeda': [10.6035, -66.8521],
@@ -140,16 +139,25 @@ if df_raw.empty:
   st.stop()
 
 
-# Limpieza y extracción de columnas clave basadas en la estructura Kobo
+# Limpieza robusta de columnas adaptada al formulario de refugios
 def limpiar_columna(df, posibles_nombres, defecto='Sin especificar'):
   for col in posibles_nombres:
     if col in df.columns:
       return df[col].fillna(defecto).astype(str).str.strip()
-  # Búsqueda parcial
   for col in df.columns:
     if any(p.lower() in col.lower() for p in posibles_nombres):
       return df[col].fillna(defecto).astype(str).str.strip()
   return pd.Series([defecto] * len(df), index=df.index)
+
+
+def limpiar_numerico(df, posibles_nombres):
+  for col in posibles_nombres:
+    if col in df.columns:
+      return pd.to_numeric(df[col], errors='coerce').fillna(0)
+  for col in df.columns:
+    if any(p.lower() in col.lower() for p in posibles_nombres):
+      return pd.to_numeric(df[col], errors='coerce').fillna(0)
+  return pd.Series([0] * len(df), index=df.index)
 
 
 df_clean = df_raw.copy()
@@ -174,8 +182,22 @@ df_clean['Fecha_Monitoreo'] = limpiar_columna(
     df_clean, ['fecha_monitoreo', 'bloque_control / fecha_monitoreo', 'date'], ''
 )
 
+# Extracción de campos demográficos de población en refugios
+df_clean['Total_Personas'] = limpiar_numerico(
+    df_clean, ['obs_total_personas', 'total_personas', 'poblacion']
+)
+df_clean['NNA'] = limpiar_numerico(
+    df_clean, ['obs_nna', 'nna', 'ninos_ninas_adolescentes']
+)
+df_clean['Mujeres'] = limpiar_numerico(
+    df_clean, ['obs_mujeres', 'mujeres', 'mujeres_adultas']
+)
+df_clean['Hombres'] = limpiar_numerico(
+    df_clean, ['obs_hombres', 'hombres', 'hombres_adultos']
+)
+
 # -----------------------------------------------------------------------------
-# 3. FILTROS LATERALES EN CASCADA
+# 3. FILTROS LATERALES EN CASCADA + FILTRO POR REFUGIO
 # -----------------------------------------------------------------------------
 st.sidebar.header('Sincronización y Filtros')
 
@@ -218,6 +240,7 @@ parroquia_disp = ['TODOS'] + sorted(
 )
 parroquia_sel = st.sidebar.selectbox('Parroquia:', parroquia_disp)
 
+# --- NUEVO FILTRO DIRECTO POR REFUGIO ---
 df_f3 = (
     df_f2
     if parroquia_sel == 'TODOS'
@@ -228,7 +251,7 @@ refugios_disp = ['TODOS'] + sorted(
 )
 refugio_sel = st.sidebar.selectbox('Refugio / Asentamiento:', refugios_disp)
 
-# Aplicar filtros globales
+# Aplicar filtros globales a los datos
 df_filtered = df_clean.copy()
 if org_sel != 'TODOS':
   df_filtered = df_filtered[df_filtered['Organizacion'] == org_sel]
@@ -242,23 +265,39 @@ if refugio_sel != 'TODOS':
   df_filtered = df_filtered[df_filtered['Nombre_Refugio'] == refugio_sel]
 
 # -----------------------------------------------------------------------------
-# 4. MÉTRICAS CLAVE
+# 4. MÉTRICAS CLAVE (INICIA CON TOTAL DE PERSONAS Y DESGLOSE DEMOGRÁFICO)
 # -----------------------------------------------------------------------------
-total_levantamientos = len(df_filtered)
-total_refugios = df_filtered['Nombre_Refugio'].nunique()
-total_municipios = df_filtered['Municipio'].nunique()
+st.subheader('📊 Población Albergada y Desglose Demográfico')
 
-col1, col2, col3 = st.columns(3)
-col1.metric('Total Levantamientos', f'{total_levantamientos:,}')
-col2.metric('Refugios / Asentamientos Monitoreados', f'{total_refugios:,}')
-col3.metric('Municipios Cobertura', f'{total_municipios:,}')
+total_personas_val = int(df_filtered['Total_Personas'].sum())
+total_nna_val = int(df_filtered['NNA'].sum())
+total_mujeres_val = int(df_filtered['Mujeres'].sum())
+total_hombres_val = int(df_filtered['Hombres'].sum())
+total_refugios_vis = df_filtered['Nombre_Refugio'].nunique()
+
+# Primera fila de métricas: Total de personas y refugios visitados
+m1, m2 = st.columns(2)
+m1.metric(
+    'Total de Personas Albergadas',
+    f'{total_personas_val:,} pers.',
+    delta=f'{total_refugios_vis} Refugios Visitados',
+)
+m2.metric('Refugios / Asentamientos Monitoreados', f'{total_refugios_vis:,}')
+
+st.markdown('<br>', unsafe_allow_html=True)
+
+# Segunda fila de métricas: Desglose por Hombres, Mujeres y NNA
+d1, d2, d3 = st.columns(3)
+d1.metric('Hombres Adultos', f'{total_hombres_val:,} pers.')
+d2.metric('Mujeres Adultas', f'{total_mujeres_val:,} pers.')
+d3.metric('Niños, Niñas y Adolescentes (NNA)', f'{total_nna_val:,} pers.')
 
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
 # 5. MAPA INTERACTIVO DE REFUGIOS
 # -----------------------------------------------------------------------------
-st.subheader('🗺️ Mapa de Ubicación y Priorización de Refugios')
+st.subheader('🗺️ Mapa Georreferenciado de Refugios')
 
 mapa = folium.Map(location=[10.5, -66.9], zoom_start=9, tiles='CartoDB positron')
 
@@ -269,7 +308,7 @@ if not df_filtered.empty:
     est = row['Estado']
     org = row['Organizacion']
     par = row['Parroquia']
-    fecha = row['Fecha_Monitoreo']
+    pob = int(row['Total_Personas'])
 
     coords = COORDENADAS_REFUGIOS.get(mun, [10.5, -66.9])
 
@@ -278,14 +317,14 @@ if not df_filtered.empty:
             <h4 style='font-family: Now, Montserrat, sans-serif; margin-bottom: 5px; color: {COLOR_AGUAMARINA};'>{ref}</h4>
             <b>Estado:</b> {est}<br>
             <b>Municipio / Parroquia:</b> {mun} / {par}<br>
-            <b>Socio Implementador:</b> {org}<br>
-            <b>Fecha Monitoreo:</b> {fecha}<br>
+            <b>Población Albergada:</b> {pob:,} pers.<br>
+            <b>Socio:</b> {org}<br>
         </div>
         """
 
     folium.CircleMarker(
         location=coords,
-        radius=8,
+        radius=min(max(pob / 30, 6), 20),
         popup=folium.Popup(popup_html, max_width=250),
         color=COLOR_AGUAMARINA,
         fill=True,
@@ -300,7 +339,7 @@ st.markdown('---')
 # -----------------------------------------------------------------------------
 # 6. TABLA Y DESCARGA DE LEVANTAMIENTOS
 # -----------------------------------------------------------------------------
-st.subheader('📋 Detalle de Levantamientos en Refugios')
+st.subheader('📋 Detalle de Levantamientos y Población por Refugio')
 
 cols_mostrar = [
     'Fecha_Monitoreo',
@@ -309,6 +348,10 @@ cols_mostrar = [
     'Municipio',
     'Parroquia',
     'Nombre_Refugio',
+    'Total_Personas',
+    'Hombres',
+    'Mujeres',
+    'NNA',
 ]
 cols_existentes = [c for c in cols_mostrar if c in df_filtered.columns]
 
