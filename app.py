@@ -239,7 +239,7 @@ if st.sidebar.button('🔄 Actualizar Datos', width='stretch'):
   st.rerun()
 
 st.sidebar.markdown('---')
-st.sidebar.header('Filtros de Priorización (Cascada)')
+st.sidebar.header('Filtros en Cascada')
 
 orgs_disp = ['TODOS'] + sorted(
     [x for x in df_clean['Organizacion'].unique() if x != 'Sin especificar']
@@ -377,7 +377,7 @@ st_folium(mapa, width='stretch', height=420)
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 6. REPORTE Y DIAGNÓSTICO WASH (ESTILO FICHA TÉCNICA SIN SÍMBOLOS EXTRAÑOS)
+# 6. REPORTE Y DIAGNÓSTICO WASH (ESTILO FICHA TÉCNICA LIMPIA)
 # -----------------------------------------------------------------------------
 st.subheader('💧 Diagnóstico Sectorial WASH: Fichas Técnicas por Albergue')
 st.markdown(
@@ -397,6 +397,17 @@ if not df_filtered.empty:
     m = int(row['Mujeres'])
     nna = int(row['NNA'])
 
+    banos_suf = row['Banos_Suficientes']
+    banos_sex = row['Banos_Sexo']
+    agua_seg = row['Agua_Segura']
+    agua_suf = row['Agua_Suficiente']
+    trat_agua = row['Tratamiento_Agua']
+    tipo_trat = row['Tipo_Tratamiento']
+    ilu_banos = row['Iluminacion_Banos']
+    acc_jabon = row['Acceso_Jabon']
+    riesgos_vbg = row['Riesgos_VBG_WASH']
+    brechas = row['Brechas_WASH']
+
     with st.expander(f'Refugio: {ref_nombre} ({mun} / {est})'):
       col_f1, col_f2 = st.columns([1, 1.5])
 
@@ -411,31 +422,24 @@ if not df_filtered.empty:
 
       with col_f2:
         st.markdown('#### Sector ASH (Agua, Saneamiento e Higiene):')
+        st.markdown(f'- **Disponibilidad de Agua Segura:** {agua_seg}')
+        st.markdown(f'- **Cantidad Suficiente de Agua:** {agua_suf}')
         st.markdown(
-            f'- **Disponibilidad de Agua Segura:** {row["Agua_Segura"]}'
+            f'- **Tratamiento Aplicado:** {trat_agua} (Tipo: {tipo_trat})'
         )
         st.markdown(
-            f'- **Cantidad Suficiente de Agua:** {row["Agua_Suficiente"]}'
+            f'- **Baños Suficientes / Separados por Sexo:** {banos_suf} /'
+            f' {banos_sex}'
         )
-        st.markdown(
-            f'- **Tratamiento Aplicado:** {row["Tratamiento_Agua"]} (Tipo:'
-            f' {row["Tipo_Tratamiento"]})'
-        )
-        st.markdown(
-            f'- **Baños Suficientes / Separados por Sexo:**'
-            f' {row["Banos_Suficientes']} / {row["Banos_Sexo"]}'
-        )
-        st.markdown(
-            f'- **Iluminación en Baños:** {row["Iluminacion_Banos"]}'
-        )
-        st.markdown(f'- **Acceso a Jabón:** {row["Acceso_Jabon"]}')
-        st.markdown(f'- **Alertas de Riesgos VBG en WASH:** {row["Riesgos_VBG_WASH"]}')
-        st.markdown(f'- **Brechas y Necesidades:** {row["Brechas_WASH"]}')
+        st.markdown(f'- **Iluminación en Baños:** {ilu_banos}')
+        st.markdown(f'- **Acceso a Jabón:** {acc_jabon}')
+        st.markdown(f'- **Alertas de Riesgos VBG en WASH:** {riesgos_vbg}')
+        st.markdown(f'- **Brechas y Necesidades:** {brechas}')
 
   st.markdown('---')
 
   # -----------------------------------------------------------------------------
-  # 7. MÓDULO DE ANÁLISIS: ACCESO AL AGUA VS TRATAMIENTO (COMPARATIVA DE BARRAS)
+  # 7. MÓDULO DE ANÁLISIS: ACCESO AL AGUA VS TRATAMIENTO (BARRAS COMPARATIVAS)
   # -----------------------------------------------------------------------------
   st.subheader('⚙️ Módulo de Análisis: Acceso al Agua vs Tratamiento')
   st.markdown(
@@ -457,8 +461,6 @@ if not df_filtered.empty:
     st.plotly_chart(fig_agua, width='stretch')
 
   with col_w2:
-    # Gráfico de barras comparativo: Albergues con Acceso a Agua vs Albergues con Tratamiento
-    total_albergues = len(df_filtered)
     con_agua_segura = (
         df_filtered['Agua_Segura'].astype(str).str.lower().isin(['si', 'sí', '1'])
     ).sum()
