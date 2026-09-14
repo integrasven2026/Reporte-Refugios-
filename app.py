@@ -413,7 +413,7 @@ with tab_wash:
   if not df_filtered.empty:
     lista_ref_wash = sorted(df_filtered['Nombre_Refugio'].unique())
     ref_sel_wash = st.selectbox(
-        'Seleccione un Refugio para ver su Ficha WASH:',
+        'Seleccione un Refugio para ver sus categorías WASH:',
         options=['TODOS LOS REFUGIOS'] + lista_ref_wash,
         key='sel_wash',
     )
@@ -444,7 +444,7 @@ with tab_wash:
       acceso_jabon = row['Acceso_Jabon']
       brechas_w = row['Brechas_WASH']
 
-      with st.expander(f'Refugio: {ref_nombre}  |  Ubicación: {mun} - {est}'):
+      with st.expander(f'Refugio: {ref_nombre} | Municipio: {mun}'):
         col_w1, col_w2 = st.columns([1, 1.5])
         with col_w1:
           st.markdown(f'**Parroquia:** {par}')
@@ -529,7 +529,7 @@ with tab_prot:
   if not df_filtered.empty:
     lista_ref_prot = sorted(df_filtered['Nombre_Refugio'].unique())
     ref_sel_prot = st.selectbox(
-        'Seleccione un Refugio para ver su Ficha de Protección:',
+        'Seleccione un Refugio para ver sus categorías de Protección:',
         options=['TODOS LOS REFUGIOS'] + lista_ref_prot,
         key='sel_prot',
     )
@@ -558,7 +558,7 @@ with tab_prot:
       pres_seg = row['Presencia_Seguridad']
       ap_psico = row['Apoyo_Psicosocial']
 
-      with st.expander(f'Refugio: {ref_nombre}  |  Ubicación: {mun} - {est}'):
+      with st.expander(f'Refugio: {ref_nombre} | Municipio: {mun}'):
         col_p1, col_p2 = st.columns([1, 1.5])
         with col_p1:
           st.markdown(f'**Parroquia:** {par}')
@@ -594,14 +594,22 @@ with tab_prot:
       st.plotly_chart(fig_vbg, width='stretch')
 
     with col_pg2:
+      df_seg_counts = (
+          df_filtered['Presencia_Seguridad']
+          .value_counts()
+          .reset_index(name='Cantidad')
+      )
+      df_seg_counts.columns = ['Condicion_Seguridad', 'Cantidad']
+
       fig_seg = px.bar(
-          df_filtered['Presencia_Seguridad'].value_counts().reset_index(),
-          x='index',
-          y='Presencia_Seguridad',
+          df_seg_counts,
+          x='Condicion_Seguridad',
+          y='Cantidad',
+          text='Cantidad',
           title='Presencia de Cuerpos de Seguridad / Entorno Protector',
           labels={
-              'index': 'Condición de Seguridad',
-              'Presencia_Seguridad': 'Cantidad de Albergues',
+              'Condicion_Seguridad': 'Condición de Seguridad',
+              'Cantidad': 'Cantidad de Albergues',
           },
           color_discrete_sequence=['#08327D'],
       )
