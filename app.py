@@ -82,7 +82,7 @@ with col_header_title:
       unsafe_allow_html=True,
   )
   st.markdown(
-      '**Proyecto ÍNTEGRAS** | Módulos WASH (ASH) y Protección / VBG'
+      '**Proyecto ÍNTEGRAS** | Módulos WASH, Salud, SSR y Protección'
   )
 
 with col_header_logo:
@@ -230,6 +230,31 @@ df_clean['Acceso_Jabon'] = limpiar_columna(
 )
 df_clean['Brechas_WASH'] = limpiar_columna(
     df_clean, ['brechas_no_cubiertas'], 'Sin observaciones'
+)
+
+# Variables de Salud Específicas
+df_clean['Enfermos_Cronicos'] = limpiar_columna(
+    df_clean, ['verif_enfermos_cronicos'], 'No'
+)
+df_clean['Cronicos_Detalles'] = limpiar_columna(
+    df_clean, ['cronicos_detalles'], 'Sin detalles'
+)
+df_clean['Atencion_Salud_Primaria'] = limpiar_columna(
+    df_clean, ['op_salud_primaria'], 'No operativo'
+)
+df_clean['Salud_Primaria_Quien'] = limpiar_columna(
+    df_clean, ['op_salud_primaria_quien'], 'No especificado'
+)
+
+# Variables de Salud Sexual y Reproductiva (SSR) Específicas
+df_clean['Acceso_SSR'] = limpiar_columna(
+    df_clean, ['verif_acceso_ssr'], 'No'
+)
+df_clean['Operatividad_SSR'] = limpiar_columna(
+    df_clean, ['op_ssr'], 'No operativo'
+)
+df_clean['SSR_Quien'] = limpiar_columna(
+    df_clean, ['op_ssr_quien'], 'No especificado'
 )
 
 # Variables de Protección Específicas
@@ -404,12 +429,14 @@ st_folium(mapa, width='stretch', height=420)
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 6. PESTAÑAS SECTORIALES: WASH (ASH) Y PROTECCIÓN (PROT)
+# 6. PESTAÑAS SECTORIALES (WASH, SALUD, SSR, PROTECCIÓN)
 # -----------------------------------------------------------------------------
 st.subheader('📑 Diagnóstico Sectorial por Albergue')
 
-tab_wash, tab_prot = st.tabs([
+tab_wash, tab_salud, tab_ssr, tab_prot = st.tabs([
     '💧 Módulo WASH (ASH)',
+    '🩺 Módulo Salud',
+    '🌸 Módulo Salud Sexual y Reproductiva (SSR)',
     '🛡️ Módulo Protección y VBG',
 ])
 
@@ -444,27 +471,18 @@ with tab_wash:
       m = int(row['Mujeres'])
       nna = int(row['NNA'])
 
-      agua_seg = row['Agua_Segura']
-      agua_suf = row['Agua_Suficiente']
-      trat_agua = row['Tratamiento_Agua']
-      tipo_trat = row['Tipo_Tratamiento']
-      banos_suf = row['Banos_Suficientes']
-      banos_sex = row['Banos_Sexo']
-      acceso_jabon = row['Acceso_Jabon']
-      brechas_w = row['Brechas_WASH']
-
       st.markdown(
           f"""
             <div class="tarjeta-categoria">
                 <h4 style="color: #17C3B2; margin-top: 0px;">Refugio: {ref_nombre}</h4>
                 <p><b>Ubicación:</b> Parroquia {par}, Municipio {mun}, {est} | <b>Socio:</b> {org} | <b>Población:</b> {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres: {h})</p>
                 <hr style="margin: 10px 0;">
-                <p><b>Disponibilidad de agua:</b> {agua_seg}</p>
-                <p><b>Cantidad de agua suficiente:</b> {agua_suf}</p>
-                <p><b>Tratamiento aplicado:</b> {trat_agua} (Tipo: {tipo_trat})</p>
-                <p><b>Baños suficientes / Separados por sexo:</b> {banos_suf} / {banos_sex}</p>
-                <p><b>Acceso a jabón:</b> {acceso_jabon}</p>
-                <p><b>Brechas críticas:</b> {brechas_w}</p>
+                <p><b>Disponibilidad de agua:</b> {row["Agua_Segura"]}</p>
+                <p><b>Cantidad de agua suficiente:</b> {row["Agua_Suficiente"]}</p>
+                <p><b>Tratamiento aplicado:</b> {row["Tratamiento_Agua"]} (Tipo: {row["Tipo_Tratamiento"]})</p>
+                <p><b>Baños suficientes / Separados por sexo:</b> {row["Banos_Suficientes"]} / {row["Banos_Sexo"]}</p>
+                <p><b>Acceso a jabón:</b> {row["Acceso_Jabon"]}</p>
+                <p><b>Brechas críticas:</b> {row["Brechas_WASH"]}</p>
             </div>
             """,
           unsafe_allow_html=True,
@@ -523,6 +541,181 @@ with tab_wash:
     st.info('No hay registros disponibles para el módulo WASH.')
 
 
+# --- PESTAÑA SALUD ---
+with tab_salud:
+  st.markdown('### Fichas Técnicas Sector SAL (Salud y Atención Primaria)')
+
+  if not df_filtered.empty:
+    lista_ref_salud = sorted(df_filtered['Nombre_Refugio'].unique())
+    ref_sel_salud = st.selectbox(
+        'Seleccione un Refugio para ver sus categorías de Salud:',
+        options=['TODOS LOS REFUGIOS'] + lista_ref_salud,
+        key='sel_salud',
+    )
+
+    df_salud_view = (
+        df_filtered
+        if ref_sel_salud == 'TODOS LOS REFUGIOS'
+        else df_filtered[df_filtered['Nombre_Refugio'] == ref_sel_salud]
+    )
+
+    for _, row in df_salud_view.iterrows():
+      ref_nombre = row['Nombre_Refugio']
+      est = row['Estado']
+      mun = row['Municipio']
+      par = row['Parroquia']
+      org = row['Organizacion']
+      pob = int(row['Total_Personas'])
+      h = int(row['Hombres'])
+      m = int(row['Mujeres'])
+      nna = int(row['NNA'])
+
+      st.markdown(
+          f"""
+            <div class="tarjeta-categoria" style="border-left-color: #0072CE;">
+                <h4 style="color: #0072CE; margin-top: 0px;">Refugio: {ref_nombre}</h4>
+                <p><b>Ubicación:</b> Parroquia {par}, Municipio {mun}, {est} | <b>Socio:</b> {org} | <b>Población:</b> {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres: {h})</p>
+                <hr style="margin: 10px 0;">
+                <p><b>Presencia de enfermos crónicos o limitaciones:</b> {row["Enfermos_Cronicos"]}</p>
+                <p><b>Detalles y requerimientos de tratamiento continuo:</b> {row["Cronicos_Detalles"]}</p>
+                <p><b>Atención Primaria en Salud (Operatividad):</b> {row["Atencion_Salud_Primaria"]}</p>
+                <p><b>Proveedor del servicio de salud:</b> {row["Salud_Primaria_Quien"]}</p>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
+    st.markdown('---')
+    st.markdown('### Análisis Gráfico Salud')
+    col_s1, col_s2 = st.columns(2)
+
+    with col_s1:
+      fig_cron = px.pie(
+          df_filtered,
+          names='Enfermos_Cronicos',
+          title='Presencia de Pacientes Crónicos en Refugios',
+          hole=0.4,
+          color_discrete_sequence=['#0072CE', COLOR_ROSADO_AAP],
+      )
+      fig_cron.update_traces(textinfo='label+value+percent')
+      st.plotly_chart(fig_cron, width='stretch')
+
+    with col_s2:
+      df_salud_counts = (
+          df_filtered['Atencion_Salud_Primaria']
+          .value_counts()
+          .reset_index(name='Cantidad')
+      )
+      df_salud_counts.columns = ['Operatividad', 'Cantidad']
+
+      fig_bar_s = px.bar(
+          df_salud_counts,
+          x='Operatividad',
+          y='Cantidad',
+          text='Cantidad',
+          title='Operatividad de Atención Primaria en Salud',
+          labels={
+              'Operatividad': 'Estado del Servicio',
+              'Cantidad': 'Cantidad de Albergues',
+          },
+          color_discrete_sequence=['#0072CE'],
+      )
+      fig_bar_s.update_traces(textposition='outside')
+      st.plotly_chart(fig_bar_s, width='stretch')
+  else:
+    st.info('No hay registros disponibles para el módulo de Salud.')
+
+
+# --- PESTAÑA SALUD SEXUAL Y REPRODUCTIVA (SSR) ---
+with tab_ssr:
+  st.markdown(
+      '### Fichas Técnicas Sector SSR (Salud Sexual y Reproductiva u'
+      ' Obstetricia)'
+  )
+
+  if not df_filtered.empty:
+    lista_ref_ssr = sorted(df_filtered['Nombre_Refugio'].unique())
+    ref_sel_ssr = st.selectbox(
+        'Seleccione un Refugio para ver sus categorías SSR:',
+        options=['TODOS LOS REFUGIOS'] + lista_ref_ssr,
+        key='sel_ssr',
+    )
+
+    df_ssr_view = (
+        df_filtered
+        if ref_sel_ssr == 'TODOS LOS REFUGIOS'
+        else df_filtered[df_filtered['Nombre_Refugio'] == ref_sel_ssr]
+    )
+
+    for _, row in df_ssr_view.iterrows():
+      ref_nombre = row['Nombre_Refugio']
+      est = row['Estado']
+      mun = row['Municipio']
+      par = row['Parroquia']
+      org = row['Organizacion']
+      pob = int(row['Total_Personas'])
+      h = int(row['Hombres'])
+      m = int(row['Mujeres'])
+      nna = int(row['NNA'])
+
+      st.markdown(
+          f"""
+            <div class="tarjeta-categoria" style="border-left-color: #D89FE3;">
+                <h4 style="color: #8A2BE2; margin-top: 0px;">Refugio: {ref_nombre}</h4>
+                <p><b>Ubicación:</b> Parroquia {par}, Municipio {mun}, {est} | <b>Socio:</b> {org} | <b>Población:</b> {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres: {h})</p>
+                <hr style="margin: 10px 0;">
+                <p><b>Acceso a servicios básicos de SSR u obstetricia:</b> {row["Acceso_SSR"]}</p>
+                <p><b>Operatividad de Salud Sexual y Reproductiva:</b> {row["Operatividad_SSR"]}</p>
+                <p><b>Organización que brinda SSR:</b> {row["SSR_Quien"]}</p>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
+    st.markdown('---')
+    st.markdown('### Análisis Gráfico SSR')
+    col_ssr1, col_ssr2 = st.columns(2)
+
+    with col_ssr1:
+      fig_ssr_pie = px.pie(
+          df_filtered,
+          names='Acceso_SSR',
+          title='Acceso a Servicios de Salud Sexual y Reproductiva',
+          hole=0.4,
+          color_discrete_sequence=[COLOR_ROSADO_AAP, '#08327D'],
+      )
+      fig_ssr_pie.update_traces(textinfo='label+value+percent')
+      st.plotly_chart(fig_ssr_pie, width='stretch')
+
+    with col_ssr2:
+      df_ssr_counts = (
+          df_filtered['Operatividad_SSR']
+          .value_counts()
+          .reset_index(name='Cantidad')
+      )
+      df_ssr_counts.columns = ['Operatividad', 'Cantidad']
+
+      fig_bar_ssr = px.bar(
+          df_ssr_counts,
+          x='Operatividad',
+          y='Cantidad',
+          text='Cantidad',
+          title='Operatividad de Servicios SSR en Albergues',
+          labels={
+              'Operatividad': 'Estado del Servicio',
+              'Cantidad': 'Cantidad de Albergues',
+          },
+          color_discrete_sequence=['#8A2BE2'],
+      )
+      fig_bar_ssr.update_traces(textposition='outside')
+      st.plotly_chart(fig_bar_ssr, width='stretch')
+  else:
+    st.info(
+        'No hay registros disponibles para el módulo de Salud Sexual y'
+        ' Reproductiva.'
+    )
+
+
 # --- PESTAÑA PROTECCIÓN ---
 with tab_prot:
   st.markdown(
@@ -554,25 +747,18 @@ with tab_prot:
       m = int(row['Mujeres'])
       nna = int(row['NNA'])
 
-      riesgos_v = row['Riesgos_VBG']
-      ori_legal = row['Orientacion_Legal']
-      prev_vbg = row['Prevencion_VBG']
-      nna_sep = row['NNA_Separados']
-      pres_seg = row['Presencia_Seguridad']
-      ap_psico = row['Apoyo_Psicosocial']
-
       st.markdown(
           f"""
-            <div class="tarjeta-categoria" style="border-left-color: #D89FE3;">
+            <div class="tarjeta-categoria" style="border-left-color: #E5B130;">
                 <h4 style="color: #08327D; margin-top: 0px;">Refugio: {ref_nombre}</h4>
                 <p><b>Ubicación:</b> Parroquia {par}, Municipio {mun}, {est} | <b>Socio:</b> {org} | <b>Población:</b> {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres: {h})</p>
                 <hr style="margin: 10px 0;">
-                <p><b>Riesgos de protección y VBG:</b> {riesgos_v}</p>
-                <p><b>Orientación legal:</b> {ori_legal}</p>
-                <p><b>Prevención VBG:</b> {prev_vbg}</p>
-                <p><b>NNA no acompañados / separados:</b> {nna_sep}</p>
-                <p><b>Presencia de seguridad:</b> {pres_seg}</p>
-                <p><b>Apoyo psicosocial (PAP):</b> {ap_psico}</p>
+                <p><b>Riesgos de protección y VBG:</b> {row["Riesgos_VBG"]}</p>
+                <p><b>Orientación legal:</b> {row["Orientacion_Legal"]}</p>
+                <p><b>Prevención VBG:</b> {row["Prevencion_VBG"]}</p>
+                <p><b>NNA no acompañados / separados:</b> {row["NNA_Separados"]}</p>
+                <p><b>Presencia de seguridad:</b> {row["Presencia_Seguridad"]}</p>
+                <p><b>Apoyo psicosocial (PAP):</b> {row["Apoyo_Psicosocial"]}</p>
             </div>
             """,
           unsafe_allow_html=True,
@@ -635,6 +821,8 @@ cols_mostrar = [
     'Total_Personas',
     'Agua_Segura',
     'Tratamiento_Agua',
+    'Atencion_Salud_Primaria',
+    'Acceso_SSR',
     'Riesgos_VBG',
     'Orientacion_Legal',
 ]
