@@ -56,6 +56,15 @@ st.markdown(
         font-weight: 800 !important;
         font-size: 2.2rem !important;
     }
+    
+    .tarjeta-categoria {
+        background-color: #f8f9fa;
+        border-left: 5px solid #17C3B2;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -444,29 +453,22 @@ with tab_wash:
       acceso_jabon = row['Acceso_Jabon']
       brechas_w = row['Brechas_WASH']
 
-      with st.expander(f'Refugio: {ref_nombre}'):
-        col_w1, col_w2 = st.columns([1, 1.5])
-        with col_w1:
-          st.markdown(f'**Parroquia:** {par}')
-          st.markdown(f'**Municipio / Estado:** {mun} - {est}')
-          st.markdown(f'**Socio Responsable:** {org}')
-          st.markdown(
-              f'**Población:** {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres:'
-              f' {h})'
-          )
-        with col_w2:
-          st.markdown('**Categorías WASH:**')
-          st.markdown(f'- **Disponibilidad de agua:** {agua_seg}')
-          st.markdown(f'- **Cantidad de agua suficiente:** {agua_suf}')
-          st.markdown(
-              f'- **Tratamiento aplicado:** {trat_agua} (Tipo: {tipo_trat})'
-          )
-          st.markdown(
-              f'- **Baños suficientes / Separados por sexo:** {banos_suf} /'
-              f' {banos_sex}'
-          )
-          st.markdown(f'- **Acceso a jabón:** {acceso_jabon}')
-          st.markdown(f'- **Brechas críticas:** {brechas_w}')
+      st.markdown(
+          f"""
+            <div class="tarjeta-categoria">
+                <h4 style="color: #17C3B2; margin-top: 0px;">Refugio: {ref_nombre}</h4>
+                <p><b>Ubicación:</b> Parroquia {par}, Municipio {mun}, {est} | <b>Socio:</b> {org} | <b>Población:</b> {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres: {h})</p>
+                <hr style="margin: 10px 0;">
+                <p><b>Disponibilidad de agua:</b> {agua_seg}</p>
+                <p><b>Cantidad de agua suficiente:</b> {agua_suf}</p>
+                <p><b>Tratamiento aplicado:</b> {trat_agua} (Tipo: {tipo_trat})</p>
+                <p><b>Baños suficientes / Separados por sexo:</b> {banos_suf} / {banos_sex}</p>
+                <p><b>Acceso a jabón:</b> {acceso_jabon}</p>
+                <p><b>Brechas críticas:</b> {brechas_w}</p>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
 
     st.markdown('---')
     st.markdown('### Análisis Gráfico WASH')
@@ -559,24 +561,22 @@ with tab_prot:
       pres_seg = row['Presencia_Seguridad']
       ap_psico = row['Apoyo_Psicosocial']
 
-      with st.expander(f'Refugio: {ref_nombre}'):
-        col_p1, col_p2 = st.columns([1, 1.5])
-        with col_p1:
-          st.markdown(f'**Parroquia:** {par}')
-          st.markdown(f'**Municipio / Estado:** {mun} - {est}')
-          st.markdown(f'**Socio Responsable:** {org}')
-          st.markdown(
-              f'**Población:** {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres:'
-              f' {h})'
-          )
-        with col_p2:
-          st.markdown('**Categorías de Protección y VBG:**')
-          st.markdown(f'- **Riesgos de protección y VBG:** {riesgos_v}')
-          st.markdown(f'- **Orientación legal:** {ori_legal}')
-          st.markdown(f'- **Prevención VBG:** {prev_vbg}')
-          st.markdown(f'- **NNA no acompañados / separados:** {nna_sep}')
-          st.markdown(f'- **Presencia de seguridad:** {pres_seg}')
-          st.markdown(f'- **Apoyo psicosocial (PAP):** {ap_psico}')
+      st.markdown(
+          f"""
+            <div class="tarjeta-categoria" style="border-left-color: #D89FE3;">
+                <h4 style="color: #08327D; margin-top: 0px;">Refugio: {ref_nombre}</h4>
+                <p><b>Ubicación:</b> Parroquia {par}, Municipio {mun}, {est} | <b>Socio:</b> {org} | <b>Población:</b> {pob:,} pers. (NNA: {nna}, Mujeres: {m}, Hombres: {h})</p>
+                <hr style="margin: 10px 0;">
+                <p><b>Riesgos de protección y VBG:</b> {riesgos_v}</p>
+                <p><b>Orientación legal:</b> {ori_legal}</p>
+                <p><b>Prevención VBG:</b> {prev_vbg}</p>
+                <p><b>NNA no acompañados / separados:</b> {nna_sep}</p>
+                <p><b>Presencia de seguridad:</b> {pres_seg}</p>
+                <p><b>Apoyo psicosocial (PAP):</b> {ap_psico}</p>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
 
     st.markdown('---')
     st.markdown('### Análisis Gráfico Protección y VBG')
