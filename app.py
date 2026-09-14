@@ -26,10 +26,10 @@ PALETA_INTEGRAS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 1. CONFIGURACIÓN DE PÁGINA Y FUENTES PERSONALIZADAS (CSS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title='Monitoreo Sectorial de Refugios | Consorcio Íntegras',
+    page_title='Diagnóstico y Reporte WASH | Consorcio Íntegras',
     layout='wide',
     initial_sidebar_state='expanded',
 )
@@ -68,12 +68,12 @@ col_header_title, col_header_logo = st.columns([3, 1])
 
 with col_header_title:
   st.markdown(
-      "<h1 class='titulo-principal'>Tablero de Monitoreo Sectorial de"
-      " Refugios</h1>",
+      "<h1 class='titulo-principal'>Tablero y Diagnóstico WASH en Refugios</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      '**Proyecto ÍNTEGRAS** | Análisis Sectorial (WASH, Salud, SSR, Protección)'
+      '**Proyecto ÍNTEGRAS** | Monitoreo Sectorial de Agua, Saneamiento e'
+      ' Higiene (ASH / WASH)'
   )
 
 with col_header_logo:
@@ -85,7 +85,7 @@ with col_header_logo:
 
 st.markdown('---')
 
-# Coordenadas geográficas base para los refugios / parroquias monitoreadas
+# Coordenadas geográficas base para los refugios
 COORDENADAS_REFUGIOS_BASE = {
     'El Junquito': [10.4561, -67.0822],
     'Caraballeda': [10.6035, -66.8521],
@@ -114,18 +114,13 @@ def cargar_datos_refugios(
     if response.status_code != 200:
       response = requests.get(url)
       if response.status_code != 200:
-        st.error(
-            'Error al conectar con KoboToolbox API (Código'
-            f' {response.status_code})'
-        )
         return pd.DataFrame()
 
     data = response.json().get('results', [])
     if not data:
       return pd.DataFrame()
     return pd.DataFrame(data)
-  except Exception as e:
-    st.error(f'Excepción al consultar la API de Kobo: {e}')
+  except Exception:
     return pd.DataFrame()
 
 
@@ -145,7 +140,7 @@ if df_raw.empty:
   st.stop()
 
 
-# Funciones de limpieza de columnas
+# Funciones de limpieza
 def limpiar_columna(df, posibles_nombres, defecto='Sin especificar'):
   for col in posibles_nombres:
     if col in df.columns:
@@ -202,24 +197,36 @@ df_clean['Hombres'] = limpiar_numerico(
     df_clean, ['obs_hombres', 'hombres', 'hombres_adultos']
 )
 
-# Indicadores Sectoriales WASH y Salud / Protección
+# Variables WASH Específicas
 df_clean['Agua_Segura'] = limpiar_columna(
-    df_clean, ['verif_agua_segura', 'agua_segura'], 'no'
+    df_clean, ['verif_agua_segura', 'agua_segura'], 'No'
+)
+df_clean['Agua_Suficiente'] = limpiar_columna(
+    df_clean, ['verif_agua_suficiente', 'agua_suficiente'], 'No'
+)
+df_clean['Tratamiento_Agua'] = limpiar_columna(
+    df_clean, ['tratamiento_agua'], 'No'
+)
+df_clean['Tipo_Tratamiento'] = limpiar_columna(
+    df_clean, ['tipo_tratamiento'], 'No especificado'
 )
 df_clean['Banos_Suficientes'] = limpiar_columna(
-    df_clean, ['chk_banos_suficientes', 'banos_suficientes'], 'no'
+    df_clean, ['chk_banos_suficientes'], 'No'
 )
 df_clean['Banos_Sexo'] = limpiar_columna(
-    df_clean, ['chk_banos_sexo', 'banos_sexo'], 'no'
+    df_clean, ['chk_banos_sexo'], 'No'
+)
+df_clean['Iluminacion_Banos'] = limpiar_columna(
+    df_clean, ['chk_iluminacion_banos'], 'No'
 )
 df_clean['Acceso_Jabon'] = limpiar_columna(
-    df_clean, ['chk_acceso_jabon', 'acceso_jabon'], 'no'
+    df_clean, ['chk_acceso_jabon'], 'No'
 )
-df_clean['Acceso_SSR'] = limpiar_columna(
-    df_clean, ['verif_acceso_ssr', 'acceso_ssr'], 'no'
+df_clean['Riesgos_VBG_WASH'] = limpiar_columna(
+    df_clean, ['obs_riesgos_vbg_wash'], 'No'
 )
-df_clean['Riesgos_VBG'] = limpiar_columna(
-    df_clean, ['obs_riesgos_vbg_wash', 'riesgos_vbg'], 'no'
+df_clean['Brechas_WASH'] = limpiar_columna(
+    df_clean, ['brechas_no_cubiertas'], 'Sin observaciones'
 )
 
 # -----------------------------------------------------------------------------
@@ -334,6 +341,7 @@ if not df_filtered.empty:
     est = row['Estado']
     org = row['Organizacion']
     pob = int(row['Total_Personas'])
+    agua = row['Agua_Segura']
 
     coords = [10.5, -66.9]
     for key, val in COORDENADAS_REFUGIOS_BASE.items():
@@ -346,11 +354,12 @@ if not df_filtered.empty:
         break
 
     popup_html = f"""
-        <div style='font-family: Quicksand, sans-serif; font-weight: 700; font-size: 12px; width: 220px;'>
+        <div style='font-family: Quicksand, sans-serif; font-weight: 700; font-size: 12px; width: 230px;'>
             <h4 style='font-family: Now, Montserrat, sans-serif; margin-bottom: 5px; color: {COLOR_AGUAMARINA};'>{ref}</h4>
             <b>Estado:</b> {est}<br>
             <b>Municipio / Parroquia:</b> {mun} / {par}<br>
             <b>Población Albergada:</b> {pob:,} pers.<br>
+            <b>Agua Segura:</b> {agua}<br>
             <b>Socio:</b> {org}<br>
         </div>
         """
@@ -370,119 +379,105 @@ st_folium(mapa, width='stretch', height=420)
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 6. ANÁLISIS SECTORIAL (WASH, SALUD, SALUD SEXUAL Y REPRODUCTIVA, PROTECCIÓN)
+# 6. REPORTE Y DIAGNÓSTICO WASH (ESTILO FICHA TÉCNICA POR ALBERGUE)
 # -----------------------------------------------------------------------------
-st.subheader('🔍 Análisis Sectorial de Necesidades en Refugios')
+st.subheader('💧 Diagnóstico Sectorial WASH: Fichas Técnicas por Albergue')
+st.markdown(
+    'Resumen detallado de las condiciones de agua, saneamiento, higiene y'
+    ' riesgos de VBG para cada refugio monitoreado.'
+)
 
-tab_wash, tab_salud, tab_ssr, tab_prot = st.tabs([
-    '💧 WASH (Agua y Saneamiento)',
-    '🩺 Salud Primaria',
-    '🌸 Salud Sexual y Reproductiva (SSR)',
-    '🛡️ Protección y VBG',
-])
+if not df_filtered.empty:
+  for _, row in df_filtered.iterrows():
+    ref_nombre = row['Nombre_Refugio']
+    est = row['Estado']
+    mun = row['Municipio']
+    par = row['Parroquia']
+    org = row['Organizacion']
+    pob = int(row['Total_Personas'])
+    h = int(row['Hombres'])
+    m = int(row['Mujeres'])
+    nna = int(row['NNA'])
 
-with tab_wash:
-  st.markdown('### Indicadores del Sector WASH')
-  if not df_filtered.empty:
-    col_w1, col_w2 = st.columns(2)
+    with st.expander(f'📍 Refugio: {ref_nombre} ({mun} / {est})'):
+      col_f1, col_f2 = st.columns([1, 1.5])
 
-    with col_w1:
-      fig_agua = px.pie(
-          df_filtered,
-          names='Agua_Segura',
-          title='Disponibilidad de Agua Segura',
-          color_discrete_sequence=[
-              COLOR_AGUAMARINA,
-              COLOR_ROSADO_AAP,
-              COLOR_AMARILLO_MOSTAZA,
-          ],
-      )
-      fig_agua.update_traces(textinfo='label+value+percent')
-      st.plotly_chart(fig_agua, width='stretch')
+      with col_f1:
+        st.markdown(f'**Ubicación:** Parroquia {par}, Municipio {mun}, {est}')
+        st.markdown(f'**Socio Responsable:** {org}')
+        st.markdown(
+            f'**Demografía:** Población estimada de {pob:,} personas.'
+            f' Distribución: {nna} NNA, {m} mujeres adultas, {h} hombres'
+            ' adultos.'
+        )
 
-    with col_w2:
-      fig_banos = px.pie(
-          df_filtered,
-          names='Banos_Sexo',
-          title='Baños Separados Físicamente por Sexo',
-          color_discrete_sequence=['#08327D', COLOR_ROSADO_AAP],
-      )
-      fig_banos.update_traces(textinfo='label+value+percent')
-      st.plotly_chart(fig_banos, width='stretch')
-  else:
-    st.info('No hay datos disponibles para WASH.')
+      with col_f2:
+        st.markdown('#### 🚰 Sector ASH (Agua, Saneamiento e Higiene):')
+        st.markdown(
+            f'- **Disponibilidad de Agua Segura:** {row["Agua_Segura"]}'
+        )
+        st.markdown(
+            f'- **Cantidad Suficiente de Agua:** {row["Agua_Suficiente"]}'
+        )
+        st.markdown(
+            f'- **Tratamiento Aplicado:** {row["Tratamiento_Agua"]} (Tipo:'
+            f' {row["Tipo_Tratamiento"]})'
+        )
+        st.markdown(
+            f'- **Baños Suficientes / Separados por Sexo:**'
+            f' {row["Banos_Suficientes"]} / {row["Banos_Sexo"]}'
+        )
+        st.markdown(
+            f'- **Iluminación en Baños:** {row["Iluminacion_Banos"]}'
+        )
+        st.markdown(f'- **Acceso a Jabón:** {row["Acceso_Jabon"]}')
+        st.markdown(f'- **Alertas de Riesgos VBG en WASH:** {row["Riesgos_VBG_WASH"]}')
+        st.markdown(f'- **Brechas y Necesidades:** {row["Brechas_WASH"]}')
 
-with tab_salud:
-  st.markdown('### Cobertura y Atención en Salud')
-  if not df_filtered.empty:
-    col_s1, col_s2 = st.columns(2)
+  st.markdown('---')
 
-    with col_s1:
-      fig_jabon = px.pie(
-          df_filtered,
-          names='Acceso_Jabon',
-          title='Acceso Continuo a Jabón e Higiene',
-          color_discrete_sequence=[COLOR_VERDE_ABIERTO, COLOR_ROSADO_AAP],
-      )
-      fig_jabon.update_traces(textinfo='label+value+percent')
-      st.plotly_chart(fig_jabon, width='stretch')
+  # -----------------------------------------------------------------------------
+  # 7. FORMULARIO INTERACTIVO / MÓDULO DE ANÁLISIS DE ACCESO Y TRATAMIENTO DE AGUA
+  # -----------------------------------------------------------------------------
+  st.subheader('⚙️ Módulo de Análisis: Acceso al Agua y Tipo de Tratamiento')
+  st.markdown(
+      'Gráficos consolidados del consorcio para priorización de intervenciones'
+      ' WASH.'
+  )
 
-    with col_s2:
-      # Distribución de refugios por municipio y población afectada en salud
-      df_mun_pob = (
-          df_filtered.groupby('Municipio')['Total_Personas']
-          .sum()
-          .reset_index()
-      )
-      fig_mun = px.bar(
-          df_mun_pob,
-          x='Municipio',
-          y='Total_Personas',
-          title='Población Afectada por Municipio',
-          color_discrete_sequence=['#0072CE'],
-      )
-      st.plotly_chart(fig_mun, width='stretch')
-  else:
-    st.info('No hay datos disponibles para Salud.')
+  col_w1, col_w2 = st.columns(2)
 
-with tab_ssr:
-  st.markdown('### Salud Sexual y Reproductiva (SSR)')
-  if not df_filtered.empty:
-    fig_ssr = px.histogram(
+  with col_w1:
+    fig_agua = px.pie(
         df_filtered,
-        x='Acceso_SSR',
-        color='Estado',
-        title='Acceso a Servicios Básicos de SSR u Obstetricia',
-        color_discrete_sequence=PALETA_INTEGRAS,
+        names='Agua_Segura',
+        title='Proporción de Refugios con Acceso a Agua Segura',
+        hole=0.4,
+        color_discrete_sequence=[COLOR_AGUAMARINA, COLOR_ROSADO_AAP],
     )
-    st.plotly_chart(fig_ssr, width='stretch')
-  else:
-    st.info('No hay datos disponibles para SSR.')
+    fig_agua.update_traces(textinfo='label+value+percent')
+    st.plotly_chart(fig_agua, width='stretch')
 
-with tab_prot:
-  st.markdown('### Protección y Alertas de Riesgos / VBG')
-  if not df_filtered.empty:
-    fig_vbg = px.pie(
-        df_filtered,
-        names='Riesgos_VBG',
-        title='Identificación de Riesgos de Protección / VBG',
-        color_discrete_sequence=[
-            COLOR_ROSADO_AAP,
-            COLOR_AGUAMARINA,
-            COLOR_AMARILLO_MOSTAZA,
-        ],
+  with col_w2:
+    fig_trat = px.bar(
+        df_filtered['Tipo_Tratamiento'].value_counts().reset_index(),
+        x='index',
+        y='Tipo_Tratamiento',
+        title='Tipos de Tratamiento de Agua Reportados',
+        labels={'index': 'Tipo de Tratamiento', 'Tipo_Tratamiento': 'Cantidad'},
+        color_discrete_sequence=['#08327D'],
     )
-    fig_vbg.update_traces(textinfo='label+value+percent')
-    st.plotly_chart(fig_vbg, width='stretch')
-  else:
-    st.info('No hay datos disponibles para Protección.')
+    st.plotly_chart(fig_trat, width='stretch')
+
+else:
+  st.info('No hay registros disponibles para los filtros seleccionados.')
 
 st.markdown('---')
 
 # -----------------------------------------------------------------------------
-# 7. TABLA Y DESCARGA
+# 8. TABLA Y DESCARGA EN EXCEL
 # -----------------------------------------------------------------------------
-st.subheader('📋 Detalle de Levantamientos y Población por Refugio')
+st.subheader('📋 Detalle General de Levantamientos WASH')
 
 cols_mostrar = [
     'Fecha_Monitoreo',
@@ -492,9 +487,10 @@ cols_mostrar = [
     'Parroquia',
     'Nombre_Refugio',
     'Total_Personas',
-    'Hombres',
-    'Mujeres',
-    'NNA',
+    'Agua_Segura',
+    'Tratamiento_Agua',
+    'Tipo_Tratamiento',
+    'Banos_Suficientes',
 ]
 cols_existentes = [c for c in cols_mostrar if c in df_filtered.columns]
 
@@ -506,15 +502,13 @@ if not df_filtered.empty:
   buffer = io.BytesIO()
   with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
     df_filtered[cols_existentes].to_excel(
-        writer, index=False, sheet_name='Refugios'
+        writer, index=False, sheet_name='Reporte_WASH'
     )
   buffer.seek(0)
 
   st.download_button(
-      label='📥 Descargar Reporte de Refugios en Excel',
+      label='📥 Descargar Reporte WASH en Excel',
       data=buffer,
-      file_name='Reporte_Refugios_Integras.xlsx',
+      file_name='Reporte_WASH_Integras.xlsx',
       mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   )
-else:
-  st.info('No hay registros disponibles para los filtros seleccionados.')
